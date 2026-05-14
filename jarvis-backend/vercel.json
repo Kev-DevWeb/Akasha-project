@@ -1,0 +1,31 @@
+/**
+ * vercel.json
+ * Configuración de despliegue en Vercel.
+ * 
+ * - Usa Node.js runtime (no Edge) para acceso a 'crypto' nativo
+ * - Configura región de despliegue preferida
+ * - Establece timeout máximo para la función principal
+ */
+{
+  "version": 2,
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/jarvis/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/devices/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-Jarvis-Secret" }
+      ]
+    }
+  ]
+}

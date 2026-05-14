@@ -1,0 +1,39 @@
+name: Jarvis Keep-Alive Ping
+
+on:
+  schedule:
+    # Ejecutar cada 10 minutos, 24/7
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente
+
+jobs:
+  ping:
+    name: Ping Jarvis API
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping al endpoint de Jarvis
+        run: |
+          echo "⚡ Enviando ping a Jarvis..."
+          
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "X-Jarvis-Secret: ${{ secrets.JARVIS_API_SECRET }}" \
+            "${{ secrets.JARVIS_APP_URL }}/api/jarvis")
+          
+          echo "📡 Código de respuesta HTTP: $RESPONSE"
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Jarvis está online y respondiendo correctamente."
+          else
+            echo "⚠️ Jarvis respondió con código inesperado: $RESPONSE"
+            exit 1
+          fi
+
+      - name: Verificar estado del sistema
+        run: |
+          STATUS=$(curl -s \
+            -H "X-Jarvis-Secret: ${{ secrets.JARVIS_API_SECRET }}" \
+            "${{ secrets.JARVIS_APP_URL }}/api/jarvis" | jq -r '.status // "unknown"')
+          
+          echo "🤖 Estado del sistema: $STATUS"

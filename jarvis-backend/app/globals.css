@@ -1,0 +1,189 @@
+/* globals.css - Sistema de diseño de Jarvis */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap');
+
+/* ── Reset y tokens de diseño ──────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-bg:          #050a10;
+  --color-bg-card:     #0a1520;
+  --color-bg-glass:    rgba(10, 21, 32, 0.7);
+  --color-border:      rgba(0, 200, 255, 0.15);
+  --color-border-glow: rgba(0, 200, 255, 0.4);
+
+  --color-primary:     #00c8ff;
+  --color-primary-dim: rgba(0, 200, 255, 0.12);
+  --color-secondary:   #7b5ea7;
+  --color-accent:      #ff6b35;
+  --color-success:     #00e5a0;
+  --color-warning:     #ffcc00;
+  --color-danger:      #ff4757;
+
+  --color-text:        #e0f0ff;
+  --color-text-muted:  #6a8fa8;
+
+  --font-brand:  'Orbitron', monospace;
+  --font-body:   'Inter', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 32px;
+
+  --shadow-glow: 0 0 20px rgba(0, 200, 255, 0.25),
+                 0 0 60px rgba(0, 200, 255, 0.08);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5),
+                 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+html, body {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 3px;
+  opacity: 0.4;
+}
+
+/* ── Utilidades ─────────────────────────────────────────── */
+.glass {
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+}
+
+.glow-text {
+  color: var(--color-primary);
+  text-shadow: 0 0 20px rgba(0, 200, 255, 0.6);
+}
+
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--color-border-glow);
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+}
+
+/* ── Animaciones ────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 0.8; }
+  50%  { transform: scale(1.1); opacity: 0.4; }
+  100% { transform: scale(0.8); opacity: 0.8; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes scan-line {
+  0%   { top: 0%; }
+  100% { top: 100%; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@keyframes wave {
+  0%, 100% { height: 4px; }
+  50%       { height: 20px; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease forwards;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* ── Botones ───────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #050a10;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 16px rgba(0, 200, 255, 0.5);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ── Badge de estado ───────────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.status-online {
+  background: rgba(0, 229, 160, 0.12);
+  color: var(--color-success);
+  border: 1px solid rgba(0, 229, 160, 0.3);
+}
+
+.status-online::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: blink 1.5s ease infinite;
+}
