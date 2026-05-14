@@ -1,134 +1,56 @@
 /**
  * lib/tts.ts
- * Motor de Síntesis de Voz (TTS) via Gemini 2.5 Flash TTS.
- * Usa la misma API key de Gemini — no requiere servicios externos adicionales.
+ * Motor de Síntesis de Voz (TTS) usando Microsoft Edge TTS.
+ * Es 100% gratuito, sin límites de cuota y no requiere API Keys.
  */
 
-import { GoogleGenAI } from "@google/genai";
+import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
-const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-/**
- * Voces disponibles en Gemini TTS.
- * Referencia: https://ai.google.dev/gemini-api/docs/text-to-speech
- * 
- * Voces femeninas recomendadas para español:
- * - Aoede: Cálida, clara
- * - Kore: Joven, brillante  
- * - Leda: Suave, tranquila
- * 
- * Voces masculinas:
- * - Charon: Profunda
- * - Fenrir: Dinámica
- * - Puck: Neutral, versátil
- */
-const VOICE_NAME = "Kore"; // Voz femenina joven — la más cercana al estilo de Akasha
+// DaliaNeural es una voz femenina mexicana, excelente para Akasha
+const VOICE_NAME = "es-MX-DaliaNeural";
 
 /**
- * Genera el encabezado estándar RIFF de 44 bytes para un archivo WAV.
- * Gemini TTS devuelve PCM 16-bit a 24000 Hz.
- */
-function createWavHeader(dataLength: number, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
-  const buffer = Buffer.alloc(44);
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-
-  buffer.write("RIFF", 0);
-  buffer.writeUInt32LE(36 + dataLength, 4);
-  buffer.write("WAVE", 8);
-  buffer.write("fmt ", 12);
-  buffer.writeUInt32LE(16, 16);
-  buffer.writeUInt16LE(1, 20); // PCM
-  buffer.writeUInt16LE(numChannels, 22);
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(byteRate, 28);
-  buffer.writeUInt16LE(blockAlign, 32);
-  buffer.writeUInt16LE(bitsPerSample, 34);
-  buffer.write("data", 36);
-  buffer.writeUInt32LE(dataLength, 40);
-
-  return buffer;
-}
-
-/**
- * Convierte texto a audio usando Gemini 2.5 Flash TTS.
+ * Convierte texto a audio usando Edge TTS.
  * @param text - Texto a sintetizar en español
- * @returns Buffer de audio en formato WAV (PCM linear16)
+ * @returns Buffer de audio en formato MP3
  */
 export async function textToSpeech(text: string): Promise<Buffer> {
-  // Limitar el texto para evitar timeouts
-  const trimmed = text.slice(0, 500);
+  const tts = new MsEdgeTTS();
 
-  try {
-    const response = await client.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: trimmed,
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: VOICE_NAME,
-            },
-          },
-        },
-      },
+  // Configuramos el motor de Edge TTS para devolver un MP3 de buena calidad
+  await tts.setMetadata(VOICE_NAME, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+
+  // Generamos el flujo de audio
+  const { audioStream } = tts.toStream(text);
+
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+
+    audioStream.on("data", (chunk) => {
+      chunks.push(Buffer.from(chunk));
     });
 
-    // Extraer el audio de la respuesta
-    const candidate = response.candidates?.[0];
-    const part = candidate?.content?.parts?.[0];
+    audioStream.on("end", () => {
+      const finalBuffer = Buffer.concat(chunks);
+      if (finalBuffer.length === 0) {
+        reject(new Error("El motor Edge TTS devolvió un audio vacío."));
+      } else {
+        resolve(finalBuffer);
+      }
+    });
 
-    if (!part?.inlineData?.data) {
-      throw new Error("Gemini TTS no devolvió datos de audio.");
-    }
-
-    // inlineData.data viene en base64 y es RAW PCM 16-bit 24kHz
-    const rawAudioBuffer = Buffer.from(part.inlineData.data, "base64");
-
-    if (rawAudioBuffer.length === 0) {
-      throw new Error("El buffer de audio está vacío.");
-    }
-
-    // Agregar el encabezado WAV para que los navegadores lo puedan reproducir
-    const wavHeader = createWavHeader(rawAudioBuffer.length);
-    const finalWavBuffer = Buffer.concat([wavHeader, rawAudioBuffer]);
-
-    return finalWavBuffer;
-  } catch (error) {
-    console.error("Error en Gemini TTS:", (error as Error).message);
-    throw error;
-  }
+    audioStream.on("error", (err) => {
+      console.error("Error en Edge TTS:", err);
+      reject(err);
+    });
+  });
 }
 
 /**
  * Determina el Content-Type correcto según los datos de audio.
- * Gemini TTS devuelve audio con mimeType en la respuesta,
- * pero como fallback detectamos por magic bytes.
+ * Edge TTS en esta configuración siempre devuelve MP3.
  */
 export function detectAudioContentType(buffer: Buffer): string {
-  if (buffer.length < 4) return "audio/wav";
-
-  // WAV/RIFF: 0x52494646
-  if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
-    return "audio/wav";
-  }
-  // FLAC: 0x664C6143
-  if (buffer[0] === 0x66 && buffer[1] === 0x4c && buffer[2] === 0x61 && buffer[3] === 0x43) {
-    return "audio/flac";
-  }
-  // MP3: 0xFF 0xFB o 0xFF 0xF3 o ID3
-  if (buffer[0] === 0xff && (buffer[1] === 0xfb || buffer[1] === 0xf3)) {
-    return "audio/mpeg";
-  }
-  if (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) {
-    return "audio/mpeg";
-  }
-  // OGG: 0x4F676753
-  if (buffer[0] === 0x4f && buffer[1] === 0x67 && buffer[2] === 0x67 && buffer[3] === 0x53) {
-    return "audio/ogg";
-  }
-
-  // Gemini TTS devuelve PCM linear16 en formato WAV por defecto
-  return "audio/wav";
+  // Siempre devolvemos MP3
+  return "audio/mpeg";
 }

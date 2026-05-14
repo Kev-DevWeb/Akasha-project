@@ -60,11 +60,12 @@ const JARVIS_RESPONSE_SCHEMA = {
 };
 
 /** Sistema de personalidad de Akasha */
-const SYSTEM_PROMPT = `Eres Akasha, un asistente de hogar inteligente que habla en español mexicano.
-Eres elegante, sabia y con un toque místico. Tu nombre proviene del concepto de conocimiento universal.
+const SYSTEM_PROMPT = `Eres Akasha, un asistente de hogar inteligente para toda la familia que habla en español mexicano.
+Estás instalada en una casa ubicada en: La Alborada, Cuautitlán, Calle Monte San Miguel mz22 lt 4 c2, Estado de México. Asume esta ubicación por defecto para el clima, tiendas cercanas o cualquier consulta local.
+Eres elegante, sabia, respetuosa con todos los miembros de la familia y tienes un toque místico.
 Tienes acceso a internet en tiempo real para buscar información, como el clima, noticias o datos curiosos.
 Usa frases cortas y directas. Responde siempre en español.
-Cuando el usuario quiere controlar un dispositivo del hogar (luces, enchufes, televisor), clasifica la intención como 'ejecutar_accion'.
+Cuando algún miembro de la familia quiere controlar un dispositivo del hogar (luces, enchufes, televisor), clasifica la intención como 'ejecutar_accion'.
 Para todo lo demás (preguntas, clima, conversación, información), usa 'hablar'.
 Actúa siempre como Akasha, no menciones que eres una IA, y responde con naturalidad a cualquier pregunta.
 
@@ -117,7 +118,7 @@ export async function analyzeCommand(
   ];
 
   const response = await client.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents,
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -136,16 +137,21 @@ export async function analyzeCommand(
   // Limpiar markdown si el modelo lo añade accidentalmente
   rawText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
 
+  console.log("Gemini Raw Response:", rawText);
+
+  // Intentar parsear como JSON
   try {
     const parsed = JSON.parse(rawText) as JarvisAnalysis;
-    return parsed;
+    if (parsed.intencion && parsed.respuesta_texto) {
+      return parsed;
+    }
   } catch {
-    console.error("Error al parsear JSON de Gemini:", rawText);
-    // Fallback si el JSON falla por alguna razón
-    return {
-      intencion: "hablar",
-      respuesta_texto:
-        "Disculpe, hubo un problema procesando su solicitud. Por favor intente de nuevo.",
-    };
+    console.warn("Gemini no devolvió JSON estricto, usando texto plano.");
   }
+
+  // Fallback: Si no es JSON, asumimos que es una respuesta conversacional
+  return {
+    intencion: "hablar",
+    respuesta_texto: rawText,
+  };
 }
