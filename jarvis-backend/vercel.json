@@ -1,11 +1,3 @@
-/**
- * vercel.json
- * Configuración de despliegue en Vercel.
- * 
- * - Usa Node.js runtime (no Edge) para acceso a 'crypto' nativo
- * - Configura región de despliegue preferida
- * - Establece timeout máximo para la función principal
- */
 {
   "version": 2,
   "framework": "nextjs",
