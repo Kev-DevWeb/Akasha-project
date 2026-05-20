@@ -13,11 +13,13 @@ import { sendTuyaCommand, TuyaCommand } from "@/lib/tuya";
 export const runtime = "nodejs";
 
 function checkAuth(request: NextRequest): boolean {
-  const apiSecret = process.env.JARVIS_API_SECRET;
+  const apiSecret = process.env.AKASHA_API_SECRET || process.env.JARVIS_API_SECRET;
   if (!apiSecret || apiSecret === "change_me_with_a_random_secret_key") {
     return true; // Sin protección en modo dev
   }
-  return request.headers.get("X-Jarvis-Secret") === apiSecret;
+  const providedSecret =
+    request.headers.get("X-Akasha-Secret") || request.headers.get("X-Jarvis-Secret");
+  return providedSecret === apiSecret;
 }
 
 /**

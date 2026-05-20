@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
       const providedSecret =
         request.headers.get("X-Akasha-Secret") || request.headers.get("X-Jarvis-Secret");
       if (providedSecret !== apiSecret) {
-        console.warn("Intento de acceso no autorizado a /api/akasha");
+        console.warn(
+          `[Auth] Acceso no autorizado. Esperado: ${apiSecret ? apiSecret.slice(0, 5) + "..." : "vacío"}, Recibido: ${providedSecret ? providedSecret.slice(0, 5) + "..." : "vacío"}`
+        );
         return NextResponse.json(
           { error: "No autorizado" },
           { status: 401 }

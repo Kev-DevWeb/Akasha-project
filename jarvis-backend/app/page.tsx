@@ -86,26 +86,53 @@ export default function AkashaDashboard() {
   useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
-  // Reloj digital
+  // Capturar errores globales de JavaScript y mostrarlos en los logs de la consola
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const handleError = (event: ErrorEvent) => {
+        addLog("error", `Crash: ${event.message} (${event.filename}:${event.lineno})`);
+      };
+      const handleRejection = (event: PromiseRejectionEvent) => {
+        addLog("error", `Promesa rechazada: ${event.reason}`);
+      };
+      window.addEventListener("error", handleError);
+      window.addEventListener("unhandledrejection", handleRejection);
+      return () => {
+        window.removeEventListener("error", handleError);
+        window.removeEventListener("unhandledrejection", handleRejection);
+      };
+    }
+  }, []);
+
+  // Reloj digital con fallback seguro para navegadores antiguos
   useEffect(() => {
     const updateTime = () => {
-      const d = new Date();
-      setTimeString(
-        d.toLocaleTimeString("es-MX", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        })
-      );
-      setDateString(
-        d.toLocaleDateString("es-MX", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })
-      );
+      try {
+        const d = new Date();
+        setTimeString(
+          d.toLocaleTimeString("es-MX", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          })
+        );
+        setDateString(
+          d.toLocaleDateString("es-MX", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
+        );
+      } catch (e) {
+        // Fallback básico si falla Intl (común en WebViews de Android antiguas)
+        try {
+          const d = new Date();
+          setTimeString(d.toTimeString().split(" ")[0]);
+          setDateString(d.toDateString());
+        } catch (err) {}
+      }
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
