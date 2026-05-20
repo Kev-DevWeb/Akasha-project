@@ -1,4 +1,4 @@
-name: Jarvis Keep-Alive Ping
+name: Akasha Keep-Alive Ping
 
 on:
   schedule:
@@ -8,32 +8,47 @@ on:
 
 jobs:
   ping:
-    name: Ping Jarvis API
+    name: Ping Akasha API
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
     steps:
-      - name: Ping al endpoint de Jarvis
+      - name: Ping al endpoint de Akasha
         run: |
-          echo "⚡ Enviando ping a Jarvis..."
+          echo "⚡ Enviando ping a Akasha..."
+          
+          # Seleccionar secreto y URL con fallbacks
+          SECRET="${{ secrets.AKASHA_API_SECRET }}"
+          if [ -z "$SECRET" ]; then SECRET="${{ secrets.JARVIS_API_SECRET }}"; fi
+          
+          URL="${{ secrets.AKASHA_APP_URL }}"
+          if [ -z "$URL" ]; then URL="${{ secrets.JARVIS_APP_URL }}"; fi
           
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "X-Jarvis-Secret: ${{ secrets.JARVIS_API_SECRET }}" \
-            "${{ secrets.JARVIS_APP_URL }}/api/jarvis")
+            -H "X-Akasha-Secret: $SECRET" \
+            -H "X-Jarvis-Secret: $SECRET" \
+            "$URL/api/akasha")
           
           echo "📡 Código de respuesta HTTP: $RESPONSE"
           
           if [ "$RESPONSE" = "200" ]; then
-            echo "✅ Jarvis está online y respondiendo correctamente."
+            echo "✅ Akasha está online y respondiendo correctamente."
           else
-            echo "⚠️ Jarvis respondió con código inesperado: $RESPONSE"
+            echo "⚠️ Akasha respondió con código inesperado: $RESPONSE"
             exit 1
           fi
 
       - name: Verificar estado del sistema
         run: |
+          SECRET="${{ secrets.AKASHA_API_SECRET }}"
+          if [ -z "$SECRET" ]; then SECRET="${{ secrets.JARVIS_API_SECRET }}"; fi
+          
+          URL="${{ secrets.AKASHA_APP_URL }}"
+          if [ -z "$URL" ]; then URL="${{ secrets.JARVIS_APP_URL }}"; fi
+          
           STATUS=$(curl -s \
-            -H "X-Jarvis-Secret: ${{ secrets.JARVIS_API_SECRET }}" \
-            "${{ secrets.JARVIS_APP_URL }}/api/jarvis" | jq -r '.status // "unknown"')
+            -H "X-Akasha-Secret: $SECRET" \
+            -H "X-Jarvis-Secret: $SECRET" \
+            "$URL/api/akasha" | jq -r '.status // "unknown"')
           
           echo "🤖 Estado del sistema: $STATUS"

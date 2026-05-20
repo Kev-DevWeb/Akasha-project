@@ -1,14 +1,14 @@
 /**
- * app/api/jarvis/route.ts
- * Endpoint principal de Jarvis.
+ * app/api/akasha/route.ts
+ * Endpoint principal de Akasha.
  *
- * POST /api/jarvis
+ * POST /api/akasha
  * Body: { "query": "enciende la luz de la sala" }
- * Headers: { "X-Jarvis-Secret": "tu_secret_key" }  (opcional pero recomendado)
+ * Headers: { "X-Akasha-Secret": "tu_secret_key" }  (opcional pero recomendado)
  *
  * Response: audio/mpeg o audio/flac con la respuesta de Akasha
  *
- * GET /api/jarvis (Keep-Alive ping)
+ * GET /api/akasha (Keep-Alive ping)
  * Response: { "status": "ok", "message": "Akasha online" }
  */
 
@@ -28,7 +28,7 @@ export async function GET() {
       status: "ok",
       message: "Akasha online",
       timestamp: new Date().toISOString(),
-      version: "1.0.0",
+      version: "2.0.0",
     },
     { status: 200 }
   );
@@ -44,7 +44,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-Jarvis-Secret",
+        "Content-Type, Authorization, X-Akasha-Secret, X-Jarvis-Secret",
     },
   });
 }
@@ -57,11 +57,12 @@ export async function POST(request: NextRequest) {
 
   try {
     // ── 1. Autenticación opcional por header secreto ──────────────────────
-    const apiSecret = process.env.JARVIS_API_SECRET;
+    const apiSecret = process.env.AKASHA_API_SECRET || process.env.JARVIS_API_SECRET;
     if (apiSecret && apiSecret !== "change_me_with_a_random_secret_key") {
-      const providedSecret = request.headers.get("X-Jarvis-Secret");
+      const providedSecret =
+        request.headers.get("X-Akasha-Secret") || request.headers.get("X-Jarvis-Secret");
       if (providedSecret !== apiSecret) {
-        console.warn("Intento de acceso no autorizado a /api/jarvis");
+        console.warn("Intento de acceso no autorizado a /api/akasha");
         return NextResponse.json(
           { error: "No autorizado" },
           { status: 401 }
@@ -89,11 +90,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Jarvis] Query recibida: "${query.slice(0, 100)}"`);
+    console.log(`[Akasha] Query recibida: "${query.slice(0, 100)}"`);
 
     // ── 3. Analizar intención con Gemini ──────────────────────────────────
     const analysis = await analyzeCommand(query.trim(), history);
-    console.log(`[Jarvis] Intención detectada: ${analysis.intencion}`, {
+    console.log(`[Akasha] Intención detectada: ${analysis.intencion}`, {
       accion: analysis.accion,
     });
 
@@ -105,18 +106,18 @@ export async function POST(request: NextRequest) {
       finalResponseText = actionResult.responseText;
 
       if (!actionResult.success) {
-        console.warn("[Jarvis] Acción fallida:", finalResponseText);
+        console.warn("[Akasha] Acción fallida:", finalResponseText);
       }
     }
 
-    console.log(`[Jarvis] Respuesta: "${finalResponseText}"`);
+    console.log(`[Akasha] Respuesta: "${finalResponseText}"`);
 
     // ── 5. Generar audio con TTS ──────────────────────────────────────────
     const audioBuffer = await textToSpeech(finalResponseText);
     const contentType = detectAudioContentType(audioBuffer);
 
     const elapsed = Date.now() - startTime;
-    console.log(`[Jarvis] Completado en ${elapsed}ms. Audio: ${contentType}`);
+    console.log(`[Akasha] Completado en ${elapsed}ms. Audio: ${contentType}`);
 
     // ── 6. Retornar el audio al cliente ────────────────────────────────
     const audioBytes = new Uint8Array(audioBuffer);
@@ -125,6 +126,10 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": contentType,
         "Content-Length": audioBytes.byteLength.toString(),
+        "X-Akasha-Latency-Ms": elapsed.toString(),
+        "X-Akasha-Intent": analysis.intencion,
+        "X-Akasha-Response-Text": encodeURIComponent(finalResponseText),
+        // Fallback para retrocompatibilidad
         "X-Jarvis-Latency-Ms": elapsed.toString(),
         "X-Jarvis-Intent": analysis.intencion,
         "X-Jarvis-Response-Text": encodeURIComponent(finalResponseText),
@@ -133,10 +138,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const err = error as Error;
-    console.error("[Jarvis] Error crítico:", err);
+    console.error("[Akasha] Error crítico:", err);
 
     // Intentar devolver un audio de error en lugar de JSON
-    // para que Tasker pueda reproducirlo
     try {
       const errorAudio = await textToSpeech(
         "Lo siento, ocurrió un error en el sistema. Por favor intente de nuevo."
@@ -144,9 +148,10 @@ export async function POST(request: NextRequest) {
       const contentType = detectAudioContentType(errorAudio);
       const errorBytes = new Uint8Array(errorAudio);
       return new NextResponse(errorBytes, {
-        status: 200, // 200 para que Tasker lo reproduzca igual
+        status: 200,
         headers: {
           "Content-Type": contentType,
+          "X-Akasha-Error": encodeURIComponent(err.message),
           "X-Jarvis-Error": encodeURIComponent(err.message),
         },
       });

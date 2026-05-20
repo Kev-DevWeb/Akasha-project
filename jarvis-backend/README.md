@@ -1,26 +1,30 @@
-# 🤖 Proyecto Jarvis — Guía de Implementación Completa
+# 🤖 Proyecto Akasha — Guía de Implementación Completa
 
 > Sistema de asistente doméstico inteligente serverless · Gemini 2.5 Flash + Tuya IoT + HF TTS
+> Cliente Web PWA Autocontenido para Honor 8A (y otros dispositivos Android)
 
 ---
 
 ## Arquitectura del Sistema
 
 ```
-Moto G5 Play (Tasker + AutoVoice)
-        │  POST /api/jarvis {"query": "..."}
-        ▼
-  Vercel (Next.js App Router)
-        │
-        ├─→ Gemini 2.5 Flash (NLP + Structured JSON)
-        │         │
-        │    intención: "hablar" ──────────→ TTS (HF)
-        │    intención: "ejecutar_accion" ─→ Tuya/IR → TTS (HF)
-        │
-        └─→ Respuesta: audio/flac o audio/mpeg
-                │
-                ▼
-        Moto G5 reproduce el audio
+         Honor 8A (PWA Web Client en Chrome / Fully Kiosk)
+         - Escucha continua local ("Akasha")
+         - Pantalla Activa (Wake Lock) + Beeps (Web Audio API)
+                             │
+                             │  POST /api/akasha {"query": "..."}
+                             ▼
+                Vercel (Next.js App Router)
+                             │
+         ├─→ Gemini 2.5 Flash (NLP + Structured JSON)
+         │         │
+         │    intención: "hablar" ──────────→ TTS (HF)
+         │    intención: "ejecutar_accion" ─→ Tuya/IR → TTS (HF)
+         │
+         └─→ Respuesta: audio/flac o audio/mpeg
+                             │
+                             ▼
+         Honor 8A reproduce el audio y actualiza la pantalla
 ```
 
 ---
@@ -35,16 +39,17 @@ Edita `.env.local` con tus credenciales reales:
 | `HF_ACCESS_TOKEN` | [Hugging Face Settings](https://huggingface.co/settings/tokens) |
 | `TUYA_CLIENT_ID` | [Tuya Developer Console](https://iot.tuya.com) |
 | `TUYA_CLIENT_SECRET` | Tuya Developer Console |
-| `JARVIS_API_SECRET` | `openssl rand -hex 32` |
-| `NEXT_PUBLIC_APP_URL` | URL de Vercel (después del deploy) |
+| `TUYA_BASE_URL` | Región correspondiente (ej: `https://openapi.tuyaus.com`) |
+| `AKASHA_API_SECRET` | Secreto aleatorio (ej. `openssl rand -hex 32`) |
+| `NEXT_PUBLIC_APP_URL` | URL de tu despliegue (para logs y pings) |
 
 ---
 
 ## Paso 2: Configurar Device IDs de Tuya
 
-1. Abre [Tuya Developer Console](https://iot.tuya.com) → Cloud → tu Proyecto → Devices
-2. Copia el **Device ID** de cada dispositivo
-3. Añade al `.env.local`:
+1. Abre [Tuya Developer Console](https://iot.tuya.com) → Cloud → tu Proyecto → Devices.
+2. Copia el **Device ID** de cada dispositivo.
+3. Añádelos a tu archivo `.env.local`:
 
 ```bash
 DEVICE_LUZ_SALA=eb...
@@ -54,7 +59,7 @@ DEVICE_ENCHUFE_TV=eb...
 DEVICE_IR_BLASTER=eb...
 ```
 
-Para dispositivos adicionales, edita `lib/devices.ts`.
+Para añadir más dispositivos, edita el registro central en `lib/devices.ts`.
 
 ---
 
@@ -64,140 +69,47 @@ Para dispositivos adicionales, edita `lib/devices.ts`.
 # Instalar Vercel CLI
 npm i -g vercel
 
-# Deploy interactivo
+# Desplegar en la carpeta jarvis-backend
 cd jarvis-backend
 vercel
 
 # O vía GitHub (CI/CD automático):
 git init
 git add .
-git commit -m "feat: jarvis initial setup"
+git commit -m "feat: akasha client pwa update"
 gh repo create jarvis-backend --private --source=. --push
-# Luego conecta el repo en https://vercel.com/new
-# e inyecta las variables de entorno en el panel de Vercel
+# Luego conecta tu repositorio en https://vercel.com/new
+# y añade tus Variables de Entorno en el panel de Vercel.
 ```
 
 ---
 
-## Paso 4: Configurar Tasker en el Moto G5
+## Paso 4: Configurar e Instalar PWA en el Honor 8A
 
-### Apps requeridas
-- **Tasker** (~$3 USD en Play Store)
-- **AutoVoice** (plugin de Tasker, gratuito)
+Consulta la guía detallada de configuración física y de sistema en [HONOR_8A_CONFIG.md](file:///home/gatoestirado/Documents/Project-Jarvis/Akasha-project/jarvis-backend/context/HONOR_8A_CONFIG.md).
 
-### Perfil en Tasker
-
-**TRIGGER:** Evento → Plugin → AutoVoice Recognized → Filtro: `Jarvis`
-
-**ACCIÓN 1 — Guardar comando:**
-```
-Variable Set: %comando = %avcommandfull
-```
-
-**ACCIÓN 2 — Petición HTTP:**
-```
-HTTP Request
-  Método:  POST
-  URL:     https://tu-proyecto.vercel.app/api/jarvis
-  Headers: Content-Type:application/json
-           X-Jarvis-Secret:tu_secreto
-  Body:    {"query": "%comando"}
-  Output File: /sdcard/jarvis_audio.flac
-```
-
-**ACCIÓN 3 — Reproducir audio:**
-```
-Audio → Music Play
-  File: /sdcard/jarvis_audio.flac
-```
+1. **Instalar**: Abre el navegador **Chrome** en tu Honor 8A y ve a la URL de tu despliegue de Vercel.
+2. **Añadir a la pantalla de inicio**: Pulsa el menú del navegador y selecciona **"Instalar aplicación"** o **"Añadir a la pantalla de inicio"**. Esto creará un acceso directo en tu escritorio que se abre a pantalla completa.
+3. **Autenticar**: Abre la app instalada, ve a la pestaña **Consola** (barra inferior) e introduce tu `X-Akasha-Secret` para desbloquear el control de dispositivos y el envío de consultas.
+4. **Permisos**: Activa **"Escucha Manos Libres"** y concede permanentemente el permiso de micrófono al navegador.
+5. **Wake Lock**: Verás que el indicador de Wake Lock se activa en verde. Mantén el teléfono conectado a la corriente y la pantalla no se atenuará ni se suspenderá la escucha de voz.
 
 ---
 
 ## Paso 5: Keep-Alive Anti-Cold-Start
 
-### Opción A: GitHub Actions (gratis, recomendado)
+Para evitar la latencia del primer arranque de funciones serverless de Vercel (Cold Starts), mantén la app caliente:
 
-1. Sube el código a GitHub:
-```bash
-gh repo create jarvis-backend --private --source=. --push
-```
-2. Ve a **Settings → Secrets → Actions** y añade:
-   - `JARVIS_APP_URL` = `https://tu-proyecto.vercel.app`
-   - `JARVIS_API_SECRET` = tu secreto
-
-El workflow `.github/workflows/keep-alive.yml` hace ping cada 10 minutos automáticamente.
+### Opción A: GitHub Actions (Automático y Gratis)
+El repositorio incluye el workflow `.github/workflows/keep-alive.yml` que hace pings GET automáticos cada 10 minutos. Configura en **Settings → Secrets → Actions** de tu repositorio:
+- `AKASHA_APP_URL` = La URL de tu app en Vercel.
+- `AKASHA_API_SECRET` = Tu contraseña secreta.
 
 ### Opción B: cron-job.org
-- URL: `https://tu-proyecto.vercel.app/api/jarvis`
+- Crea un cron gratuito apuntando a: `https://tu-proyecto.vercel.app/api/akasha`
 - Método: `GET`
-- Header: `X-Jarvis-Secret: tu_secreto`
-- Intervalo: cada 10 minutos
-
----
-
-## Pruebas con curl
-
-```bash
-# Verificar sistema online
-curl https://tu-proyecto.vercel.app/api/jarvis
-
-# Comando de conversación
-curl -X POST https://tu-proyecto.vercel.app/api/jarvis \
-  -H "Content-Type: application/json" \
-  -H "X-Jarvis-Secret: tu_secreto" \
-  -d '{"query": "hola jarvis"}' \
-  --output respuesta.flac && aplay respuesta.flac
-
-# Controlar dispositivo
-curl -X POST https://tu-proyecto.vercel.app/api/jarvis \
-  -H "Content-Type: application/json" \
-  -H "X-Jarvis-Secret: tu_secreto" \
-  -d '{"query": "enciende la luz de la sala"}' \
-  --output respuesta.flac && aplay respuesta.flac
-
-# Listar dispositivos
-curl https://tu-proyecto.vercel.app/api/devices \
-  -H "X-Jarvis-Secret: tu_secreto"
-```
-
----
-
-## Solución de Problemas
-
-| Síntoma | Causa | Solución |
-|---------|-------|----------|
-| `401 No autorizado` | Secret incorrecto | Verificar `JARVIS_API_SECRET` en Vercel |
-| Audio en silencio | Modelo HF cargando | Esperar 30s (el modelo se calienta automáticamente) |
-| `Tuya auth failed` | Credenciales incorrectas | Revisar CLIENT_ID/SECRET y región TUYA_BASE_URL |
-| Gemini no responde | API Key inválida | Verificar en Google AI Studio |
-| Cold Start lento | Keep-alive sin configurar | Activar GitHub Action |
-| Dispositivo no encontrado | Device ID incorrecto | Verificar en Tuya Cloud Console |
-
----
-
-## Estructura del Proyecto
-
-```
-jarvis-backend/
-├── app/
-│   ├── api/
-│   │   ├── jarvis/route.ts      ← Endpoint principal
-│   │   └── devices/route.ts     ← Gestión de dispositivos
-│   ├── globals.css              ← Diseño dark/sci-fi
-│   ├── layout.tsx
-│   └── page.tsx                 ← Dashboard web
-├── lib/
-│   ├── gemini.ts                ← NLP + Structured Outputs
-│   ├── tts.ts                   ← TTS via Hugging Face
-│   ├── tuya.ts                  ← Tuya IoT API
-│   ├── devices.ts               ← Registro de dispositivos
-│   └── actions.ts               ← Ejecutor de acciones IoT
-├── .github/workflows/
-│   └── keep-alive.yml           ← Ping anti-cold-start
-├── .env.local                   ← Credenciales privadas
-├── .env.example                 ← Plantilla
-└── vercel.json                  ← Configuración Vercel
-```
+- Header: `X-Akasha-Secret: tu_secreto`
+- Frecuencia: Cada 10 minutos.
 
 ---
 
@@ -205,8 +117,7 @@ jarvis-backend/
 
 ```bash
 cd jarvis-backend
-cp .env.example .env.local
-# editar .env.local con tus keys reales
+npm install
 npm run dev
-# → Dashboard en http://localhost:3000
+# Abre http://localhost:3000 para probar la PWA e interactuar por voz o mandos rápidos.
 ```

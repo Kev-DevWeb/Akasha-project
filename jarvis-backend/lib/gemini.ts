@@ -9,7 +9,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 /** Schema JSON para la respuesta estructurada de Gemini */
-const JARVIS_RESPONSE_SCHEMA = {
+const AKASHA_RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     intencion: {
@@ -80,7 +80,7 @@ REGLA ESTRICTA: Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido, sin bl
   } // (accion solo debe existir si intencion es ejecutar_accion)
 }`;
 
-export interface JarvisAnalysis {
+export interface AkashaAnalysis {
   intencion: "hablar" | "ejecutar_accion";
   respuesta_texto: string;
   accion?: {
@@ -104,7 +104,7 @@ export interface JarvisAnalysis {
 export async function analyzeCommand(
   userQuery: string,
   conversationHistory: Array<{ role: "user" | "model"; text: string }> = []
-): Promise<JarvisAnalysis> {
+): Promise<AkashaAnalysis> {
   // Construir el historial de conversación si existe
   const contents = [
     ...conversationHistory.map((h) => ({
@@ -118,7 +118,7 @@ export async function analyzeCommand(
   ];
 
   const response = await client.models.generateContent({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-2.0-flash-lite",
     contents,
     config: {
       systemInstruction: SYSTEM_PROMPT,
@@ -141,7 +141,7 @@ export async function analyzeCommand(
 
   // Intentar parsear como JSON
   try {
-    const parsed = JSON.parse(rawText) as JarvisAnalysis;
+    const parsed = JSON.parse(rawText) as AkashaAnalysis;
     if (parsed.intencion && parsed.respuesta_texto) {
       return parsed;
     }
