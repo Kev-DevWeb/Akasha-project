@@ -118,7 +118,7 @@ export async function analyzeCommand(
   ];
 
   const response = await client.models.generateContent({
-    model: "gemini-2.0-flash-lite",
+    model: "gemini-2.5-flash",
     contents,
     config: {
       systemInstruction: SYSTEM_PROMPT,
